@@ -1,5 +1,5 @@
 const catCount = 10;
-let cats = [];
+let cats = [];      // stores preloaded Image objects
 let liked = [];
 let currentIndex = 0;
 
@@ -10,30 +10,50 @@ const card = document.getElementById("card");
 
 img.ondragstart = () => false;
 
-async function loadCats() {
+// 🔁 Preload all cat images before starting
+function preloadCats() {
+  loading.style.display = "flex";
+  let loadedCount = 0;
+
   for (let i = 0; i < catCount; i++) {
-    cats.push(`https://cataas.com/cat?width=600&height=600&${Date.now() + i}`);
+    const url = `https://cataas.com/cat?width=600&height=600&${Date.now() + i}`;
+    const temp = new Image();
+    temp.src = url;
+
+    temp.onload = () => {
+      cats[i] = temp;
+      loadedCount++;
+      if (loadedCount === catCount) {
+        showFirstCat();
+      }
+    };
+
+    temp.onerror = () => {
+      console.error("Failed to load image:", url);
+      // Optionally retry or use fallback image
+    };
   }
-  loadCatImage(cats[currentIndex]);
 }
 
-function loadCatImage(url) {
-  loading.style.display = "flex";
-  img.style.display = "none";
-  const tempImg = new Image();
-  tempImg.src = url;
-  tempImg.onload = () => {
-    img.src = tempImg.src;
-    resetImage();
-    img.style.display = "block";
-    loading.style.display = "none";
-  };
+function showFirstCat() {
+  loading.style.display = "none";
+  img.src = cats[currentIndex].src;
+  img.style.display = "block";
+  resetImage();
 }
 
 function nextCat() {
   currentIndex++;
   if (currentIndex < cats.length) {
-    loadCatImage(cats[currentIndex]);
+    img.style.display = "none";
+    loading.style.display = "flex";
+
+    setTimeout(() => {
+      img.src = cats[currentIndex].src;
+      img.style.display = "block";
+      resetImage();
+      loading.style.display = "none";
+    }, 100); // small delay for UI smoothness
   } else {
     showSummary();
   }
@@ -44,13 +64,15 @@ function showSummary() {
   card.style.display = "none";
   document.getElementById("instructions").style.display = "none";
   summary.style.display = "block";
+
   summary.innerHTML = `
     <h2>You liked ${liked.length} cats!</h2>
     <div class="liked-gallery">
-      ${liked.map(url => `<img src="${url}">`).join("")}
+      ${liked.map(img => `<img src="${img.src}">`).join("")}
     </div>
     <button id="restartBtn">🔁 Start Over</button>
   `;
+
   document.getElementById("restartBtn").addEventListener("click", () => {
     location.reload();
   });
@@ -90,15 +112,11 @@ function handleEnd() {
     img.style.transform = "translateX(500px) rotate(15deg)";
     img.style.opacity = "0";
     liked.push(cats[currentIndex]);
-    setTimeout(() => {
-      nextCat();
-    }, 300);
+    setTimeout(() => nextCat(), 300);
   } else if (deltaX < -swipeThreshold) {
     img.style.transform = "translateX(-500px) rotate(-15deg)";
     img.style.opacity = "0";
-    setTimeout(() => {
-      nextCat();
-    }, 300);
+    setTimeout(() => nextCat(), 300);
   } else {
     img.style.transform = "translateX(0)";
   }
@@ -106,7 +124,7 @@ function handleEnd() {
   dragging = false;
 }
 
-// Event listeners for touch and mouse
+// Event listeners
 img.addEventListener("touchstart", (e) => handleStart(e.touches[0].clientX));
 img.addEventListener("touchmove", (e) => handleMove(e.touches[0].clientX));
 img.addEventListener("touchend", handleEnd);
@@ -116,4 +134,14 @@ img.addEventListener("mousemove", (e) => handleMove(e.clientX));
 img.addEventListener("mouseup", handleEnd);
 img.addEventListener("mouseleave", handleEnd);
 
-loadCats();
+// Start
+preloadCats();
+
+// Animate loading dots
+let dotCount = 0;
+setInterval(() => {
+  if (loading.style.display === "flex") {
+    dotCount = (dotCount + 1) % 4;
+    loading.textContent = "Loading" + ".".repeat(dotCount);
+  }
+}, 500);
